@@ -32,6 +32,10 @@ static xTaskHandle s_bt_app_task_handle = NULL;
 static xTaskHandle s_bt_i2s_task_handle = NULL;
 static RingbufHandle_t s_ringbuf_i2s = NULL;;
 
+bool freezeBLTData = false;
+uint8_t bltData[64];
+uint8_t bltDataIndex = 0;
+
 bool bt_app_work_dispatch(bt_app_cb_t p_cback, uint16_t event, void *p_params, int param_len, bt_app_copy_cb_t p_copy_cback)
 {
     ESP_LOGD(BT_APP_CORE_TAG, "%s event 0x%x, param len %d", __func__, event, param_len);
@@ -123,17 +127,33 @@ void bt_app_task_shut_down(void)
 static void bt_i2s_task_handler(void *arg)
 {
     uint8_t *data = NULL;
+    uint16_t *storeData = NULL;
     size_t item_size = 0;
     size_t bytes_written = 0;
 
     for (;;) {
         data = (uint8_t *)xRingbufferReceive(s_ringbuf_i2s, &item_size, (portTickType)portMAX_DELAY);
-        if (item_size != 0){
-            LED1.update((uint8_t)*(data)-127);
-            LED2.update((uint8_t)*(data)-127);
-            LED3.update((uint8_t)*(data)-127);
-            printf("data: %d\n", max(0,(int16_t)((*data)-127)));
+        storeData = (uint16_t *)data;
+        if (item_size != 0) {
+            led_sources[SRC_2] = max(0,(int16_t)((*data)));
             i2s_write(I2S_NUM_0, data, item_size, &bytes_written, portMAX_DELAY);
+                // printf("Packet: Bytes: %d %d\n", bytes_written, item_size);
+            for(uint16_t i = 0; i < item_size; i+=2)
+            {
+                // if((int16_t)(storeData[i]) != 0)
+                // printf("%d:%d\n", i, (int16_t)(storeData[i]));
+                // vTaskMissedYield();
+            }
+            if(!freezeBLTData)
+            {
+                bltData[bltDataIndex++] = (int16_t)((*data)-127);
+                if(bltDataIndex == 64)
+                {
+                    readyForFFT = true;
+                    freezeBLTData = true;
+                    bltDataIndex = 0;
+                }
+            }
             // if(fps_counter % 1000 == 0)
             // {
             //     printf("%f\n", (float)(xTaskGetTickCount())/configTICK_RATE_HZ);

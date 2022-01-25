@@ -8,6 +8,10 @@
 #include "apis.h"
 #include "led_definitions.h"
 
+void led_init();
+void led_task_start_up();
+void led_update(void *arg);
+
 class LED
 {
 private:
@@ -21,6 +25,7 @@ private:
     unsigned long _prevUpdate = 0;
     bool _state=0, _invert=0;
     byte _control = 0b00000000;
+    uint8_t GET_SOURCE(uint8_t src);
 
 public:
     LED(uint8_t gpio_pin, ledc_timer_t ledc_timer_num, ledc_channel_t ledc_channel_num);

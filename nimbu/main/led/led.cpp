@@ -1,8 +1,75 @@
 #include "led.h"
+#include "variables.h"
+
+uint8_t led_sources[MAX_SRC_NUM];
+int fps_counter;
 
 LED LED1(R_LEDC_OUTPUT_IO, R_LEDC_TIMER, R_LEDC_CHANNEL);
 LED LED2(G_LEDC_OUTPUT_IO, G_LEDC_TIMER, G_LEDC_CHANNEL);
 LED LED3(B_LEDC_OUTPUT_IO, B_LEDC_TIMER, B_LEDC_CHANNEL);
+
+void led_init()
+{
+    fps_counter=0;
+    LED1.invert(true);
+    LED1.update(0xff);
+    LED1.setTime(20,500);
+    LED1.routeAdcSource1(true);
+    LED1.routeAdcSource2(true);
+    // LED1.flash(true);
+
+    LED2.invert(true);
+    LED2.update(0xff);
+    // LED2.setTime(20,1000);
+    // LED2.setUserBrightness(16);
+    // LED2.routeUser(true);
+    
+    LED3.invert(true);
+    LED3.update(0xff);
+    // LED3.setTime(2000,2000);
+    // LED3.setUserBrightness(96);
+    // LED3.setRandomStep(64,2);
+    // LED3.routeUser(true);
+    // LED3.routeRandom(true);
+}
+
+void led_update(void *arg)
+{
+    // Required for vTaskDelayUntil to achieve precise FPS
+    #ifdef DEBUG_FPS
+    uint64_t prevTime = millis();
+    #endif
+    // TickType_t xLastLEDFrameUpdate;
+    // portTICK_PERIOD_MS milliseconds --> 1 tick
+    // time(ms) --> time/portTICK_PERIOD_MS
+    // fps = 1000/time(ms)
+    // const TickType_t xFrequency = 1000/(FPS*portTICK_PERIOD_MS);
+    for (;;) {
+        LED1.limit(adc_values[0]>>4);
+        LED2.limit(adc_values[0]>>4);
+        LED3.limit(adc_values[0]>>4);
+        LED1.update();
+        LED2.update();
+        LED3.update();
+        #ifdef DEBUG_FPS
+        fps_counter++;
+        if(millis() - prevTime > 1000)
+        {
+            ESP_LOGI("LED", "FPS: %3d", fps_counter);
+            fps_counter = 0;
+            prevTime = millis();
+        }
+        #endif
+        delay(1000/FPS);
+        // vTaskDelayUntil(&xLastLEDFrameUpdate, xFrequency);
+        // this implementation of vTaskDelayUntil is not working for some reason
+    }
+}
+
+void led_task_start_up()
+{
+    xTaskCreate((TaskFunction_t)led_update, "LED_upd", 4096, NULL, configMAX_PRIORITIES-3, &s_led_task_handle);
+}
 
 LED::LED(uint8_t gpio_pin, ledc_timer_t ledc_timer_num, ledc_channel_t ledc_channel_num)
 {
@@ -27,6 +94,11 @@ LED::LED(uint8_t gpio_pin, ledc_timer_t ledc_timer_num, ledc_channel_t ledc_chan
     ESP_ERROR_CHECK(ledc_timer_config(&_ledc_timer));
     // Apply the LEDC PWM channel configuration
     ESP_ERROR_CHECK(ledc_channel_config(&_ledc_channel));
+}
+
+uint8_t LED::GET_SOURCE(uint8_t src)
+{
+    return led_sources[src];
 }
 
 void LED::update(uint8_t value)
@@ -459,7 +531,7 @@ uint8_t LED::calculateBrightness()
         if(_control & (1<<i))
             totalBrightness += float(_brightness[i])/_activeSources;
             #ifdef DEBUG_PRINT
-                printf(_brightness[i]);
+                printf("%d",_brightness[i]);
                 printf("\t");
             #endif
     }
