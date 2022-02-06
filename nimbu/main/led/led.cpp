@@ -13,19 +13,28 @@ void led_init()
     fps_counter=0;
     LED1.invert(true);
     LED1.update(0xff);
-    LED1.setTime(20,500);
-    LED1.routeAdcSource1(true);
-    LED1.routeAdcSource2(true);
+    LED1.setTime(6000,6000);
+    // LED1.setTime(20,500);
+    // LED1.routeAdcSource1(true);
+    // LED1.routeAdcSource2(true);
+    LED1.pulse(true);
+    // LED1.limit(1);
     // LED1.flash(true);
 
     LED2.invert(true);
     LED2.update(0xff);
+    LED2.setTime(3000,3000);
+    LED2.pulse(true);
+    // LED2.limit(1);
     // LED2.setTime(20,1000);
     // LED2.setUserBrightness(16);
     // LED2.routeUser(true);
     
     LED3.invert(true);
     LED3.update(0xff);
+    LED3.setTime(2000,2000);
+    LED3.pulse(true);
+    // LED3.limit(1);
     // LED3.setTime(2000,2000);
     // LED3.setUserBrightness(96);
     // LED3.setRandomStep(64,2);
@@ -45,12 +54,10 @@ void led_update(void *arg)
     // fps = 1000/time(ms)
     // const TickType_t xFrequency = 1000/(FPS*portTICK_PERIOD_MS);
     for (;;) {
-        LED1.limit(adc_values[0]>>4);
-        LED2.limit(adc_values[0]>>4);
-        LED3.limit(adc_values[0]>>4);
         LED1.update();
         LED2.update();
         LED3.update();
+        // printf("%d\n", adc_values[0]+1000);
         #ifdef DEBUG_FPS
         fps_counter++;
         if(millis() - prevTime > 1000)
@@ -68,7 +75,7 @@ void led_update(void *arg)
 
 void led_task_start_up()
 {
-    xTaskCreate((TaskFunction_t)led_update, "LED_upd", 4096, NULL, configMAX_PRIORITIES-3, &s_led_task_handle);
+    xTaskCreate((TaskFunction_t)led_update, "LED_upd", 4096, NULL, tskIDLE_PRIORITY, &s_led_task_handle);
 }
 
 LED::LED(uint8_t gpio_pin, ledc_timer_t ledc_timer_num, ledc_channel_t ledc_channel_num)
@@ -105,6 +112,7 @@ void LED::update(uint8_t value)
 {
     ESP_ERROR_CHECK(ledc_set_duty(_ledc_channel.speed_mode, _ledc_channel.channel, value));
     ESP_ERROR_CHECK(ledc_update_duty(_ledc_channel.speed_mode, _ledc_channel.channel));
+    // printf("%d %p %lld %d %d\n", _brightness[TOTAL], &_brightness[TOTAL], millis(), _onTime, _offTime);
 }
 
 void LED::update()
@@ -412,6 +420,8 @@ uint8_t LED::calculateBrightness()
     // averages out all values of brightness
     // a future update will use specific weights to calculate the average
 
+    uint64_t timeNow = millis();
+
     // external light
     if(_control & (1<<LIGHT))
     {
@@ -426,20 +436,20 @@ uint8_t LED::calculateBrightness()
     if(_control & (1<<FLASH))
     {
         // here, state is used to check whether the LED is activated or not
-        if((_state) && (millis() - _prevUpdate) > _onTime)
+        if((_state) && (timeNow - _prevUpdate) > _onTime)
         {
             _state = false;
-            _prevUpdate = millis();
+            _prevUpdate = timeNow;
             #ifndef FLASH_GATE
                 _brightness[FLASH] = _minBrightness;
             #else
                 return _minBrightness;
             #endif
         }
-        if((!_state) && (millis() - _prevUpdate) > _offTime)
+        if((!_state) && (timeNow - _prevUpdate) > _offTime)
         {
             _state = true;
-            _prevUpdate = millis();
+            _prevUpdate = timeNow;
             #ifndef FLASH_GATE
                 _brightness[FLASH] = _maxBrightness;
             #endif
@@ -452,23 +462,22 @@ uint8_t LED::calculateBrightness()
     {
         // here, state is used to check whether the brightness is increasing (0) or decreasing (1)
         // _state is explicitly set 'false' and brightness set to 0 before starting pulse
-        if(!(_state) && (millis() - _prevUpdate) > _incrementStepTime)
+        if(!(_state) && (timeNow - _prevUpdate) > _incrementStepTime)
         {
             if(_brightness[PULSE] == _maxPulseBrightness)
                 _state = true;
             else
                 _brightness[PULSE] = constrain(_brightness[PULSE] + _stepValue, _minPulseBrightness, _maxPulseBrightness);
-            _prevUpdate = millis();
+            _prevUpdate = timeNow;
         }
-        if((_state) && (millis() - _prevUpdate) > _decrementStepTime)
+        if((_state) && (timeNow - _prevUpdate) > _decrementStepTime)
         {
             if(_brightness[PULSE] == _minPulseBrightness)
                 _state = false;
             else
                 _brightness[PULSE] = constrain(_brightness[PULSE] - _stepValue, _minPulseBrightness, _maxPulseBrightness);
-            _prevUpdate = millis();
+            _prevUpdate = timeNow;
         }
-
     }
 
     // adcSource1 routing
