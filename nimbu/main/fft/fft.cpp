@@ -4,9 +4,12 @@
 #include <iostream>
 #include <complex>
 
+//FFT constants pi and  i
 const double pi = std::acos(-1);
 const std::complex<double> i(0, 1);
 
+//N is a power of 2
+//X is complex sample array if SIZE N
 std::complex<double>* fft(int N, std::complex<double> X[N]){
     if (N == 1){
         return X;
