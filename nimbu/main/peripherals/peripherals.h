@@ -59,6 +59,9 @@
 #define ADC_ESP_LOGI(ADC_TAG, ...)  void(0)
 #endif
 
+#define ADC_SRC1    ADC1_CHANNEL_6
+#define ADC_SRC2    ADC1_CHANNEL_7
+
 // ADC
 bool adc_init(void);
 void adc_task_start_up();

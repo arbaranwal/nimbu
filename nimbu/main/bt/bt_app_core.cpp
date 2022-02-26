@@ -127,36 +127,30 @@ void bt_app_task_shut_down(void)
 static void bt_i2s_task_handler(void *arg)
 {
     uint8_t *data = NULL;
-    uint16_t *storeData = NULL;
     size_t item_size = 0;
     size_t bytes_written = 0;
 
     for (;;) {
         data = (uint8_t *)xRingbufferReceive(s_ringbuf_i2s, &item_size, (portTickType)portMAX_DELAY);
-        storeData = (uint16_t *)data;
-        if (item_size != 0) {
-            led_sources[SRC_2] = max(0,(int16_t)((*data)));
+        if (item_size != 0)
+        {
             i2s_write(I2S_NUM_0, data, item_size, &bytes_written, portMAX_DELAY);
-                // printf("Packet: Bytes: %d %d\n", bytes_written, item_size);
-            for(uint16_t i = 0; i < item_size; i+=2)
+            int16_t total = 0;
+            for(uint32_t i = 0; i < (item_size>>LED_VU_RESOLUTION); i++)
             {
-                // if((int16_t)(storeData[i]) != 0)
-                // printf("%d:%d\n", i, (int16_t)(storeData[i]));
-                // vTaskMissedYield();
+                int16_t x = max(0,((int16_t*)(data))[i<<LED_VU_RESOLUTION]);
+                total = (uint8_t)((total+x)/(i+1));
             }
-            if(!freezeBLTData)
-            {
-                bltData[bltDataIndex++] = (int16_t)((*data)-127);
-                if(bltDataIndex == 64)
-                {
-                    readyForFFT = true;
-                    freezeBLTData = true;
-                    bltDataIndex = 0;
-                }
-            }
-            // if(fps_counter % 1000 == 0)
+            led_sources[SRC_2] = total;
+            // if(!freezeBLTData)
             // {
-            //     printf("%f\n", (float)(xTaskGetTickCount())/configTICK_RATE_HZ);
+            //     bltData[bltDataIndex++] = (int16_t)((*data)-127);
+            //     if(bltDataIndex == 64)
+            //     {
+            //         readyForFFT = true;
+            //         freezeBLTData = true;
+            //         bltDataIndex = 0;
+            //     }
             // }
             vRingbufferReturnItem(s_ringbuf_i2s,(void *)data);
         }

@@ -2,7 +2,7 @@
 #include "variables.h"
 
 uint16_t adc_values[MAX_ADC_SRC_NUM];
-adc1_channel_t adc_channels[MAX_ADC_SRC_NUM] = {ADC1_CHANNEL_6, ADC1_CHANNEL_7};
+adc1_channel_t adc_channels[MAX_ADC_SRC_NUM] = {ADC_SRC1, ADC_SRC2};
 
 void adc_update(void *arg)
 {
@@ -70,7 +70,7 @@ void i2s_init()
     i2s_config.bits_per_sample = (i2s_bits_per_sample_t)16;
     i2s_config.channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT;         //2-channels
     i2s_config.communication_format = I2S_COMM_FORMAT_STAND_MSB;
-    i2s_config.dma_desc_num = 128;
+    i2s_config.dma_desc_num = 64;
     i2s_config.dma_frame_num = 64;
     i2s_config.intr_alloc_flags = 0;        //Default interrupt priority
     i2s_config.tx_desc_auto_clear = true;   //Auto clear tx descriptor on underflow

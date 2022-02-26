@@ -4,6 +4,7 @@
 #include <string.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/queue.h"
 #include "nvs.h"
 #include "nvs_flash.h"
 #include "esp_system.h"
@@ -37,6 +38,7 @@
 xTaskHandle s_led_task_handle = NULL;
 xTaskHandle s_fft_task_handle = NULL;
 xTaskHandle s_adc_task_handle = NULL;
+xQueueHandle eventQueue = xQueueCreate(80, 32);
 
 // needed for creating entry point to C
 extern "C" {

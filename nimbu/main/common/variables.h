@@ -2,9 +2,16 @@
 #define __VARIABLES__
 
 #include <cstdint>
+#include "freertos/FreeRTOS.h"
+#include "freertos/queue.h"
 #include "definitions.h"
+#include "led_definitions.h"
 #include "led.h"
-#include "kiss_fft.h"
+
+#define MAX_FFT_SRC_NUM (8)
+#define MAX_LED_SRC_NUM (MAX_ADC_SRC_NUM + MAX_FFT_SRC_NUM)
+
+extern xQueueHandle eventQueue;
 
 // led: defined in led.cpp
 extern int fps_counter;
@@ -17,12 +24,6 @@ extern uint16_t adc_values[MAX_ADC_SRC_NUM];
 extern uint8_t led_sources[MAX_LED_SRC_NUM];
 // defined in fft_engine.cpp
 extern uint8_t fft_values[MAX_FFT_SRC_NUM];
-
-// fft: defined in fft_engine.cpp
-extern kiss_fft_cpx cin[64];
-extern kiss_fft_cpx cout[64];
-extern kiss_fft_cfg kiss_fft_state;
-extern int nfft;
 
 // fft-blt bridge: defined in either bt_app_core.cpp or fft_engine.cpp
 extern bool freezeBLTData, readyForFFT;

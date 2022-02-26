@@ -1,7 +1,7 @@
 #include "led.h"
 #include "variables.h"
 
-uint8_t led_sources[MAX_SRC_NUM];
+uint8_t led_sources[MAX_LED_SRC_NUM];
 int fps_counter;
 
 LED LED1(R_LEDC_OUTPUT_IO, R_LEDC_TIMER, R_LEDC_CHANNEL);
@@ -11,29 +11,31 @@ LED LED3(B_LEDC_OUTPUT_IO, B_LEDC_TIMER, B_LEDC_CHANNEL);
 void led_init()
 {
     fps_counter=0;
-    LED1.invert(true);
+    // LED1.invert(true);
     LED1.update(0xff);
     LED1.setTime(6000,6000);
     // LED1.setTime(20,500);
     // LED1.routeAdcSource1(true);
-    // LED1.routeAdcSource2(true);
-    LED1.pulse(true);
+    LED1.routeAdcSource2(true);
+    // LED1.pulse(true);
     // LED1.limit(1);
     // LED1.flash(true);
 
-    LED2.invert(true);
+    // LED2.invert(true);
     LED2.update(0xff);
     LED2.setTime(3000,3000);
-    LED2.pulse(true);
+    // LED2.pulse(true);
+    LED2.routeAdcSource2(true);
     // LED2.limit(1);
     // LED2.setTime(20,1000);
     // LED2.setUserBrightness(16);
     // LED2.routeUser(true);
     
-    LED3.invert(true);
+    // LED3.invert(true);
     LED3.update(0xff);
     LED3.setTime(2000,2000);
-    LED3.pulse(true);
+    // LED3.pulse(true);
+    LED3.routeAdcSource2(true);
     // LED3.limit(1);
     // LED3.setTime(2000,2000);
     // LED3.setUserBrightness(96);
@@ -374,6 +376,32 @@ void LED::routeAdcSource2(bool adcSource2)
         // nothing more to do if adcSource2 is not being routed
         return;
     }
+
+    // reset counters and update valuesfor thresholds
+    adcSource2IncrCount = 0;
+    adcSource2DecrCount = 0;
+    adcSource2IncrCountThresh = 1;
+    adcSource2DecrCountThresh = 1;
+
+    _control |= (1<<ADC_SOURCE2);
+
+    _activeSources = getActiveSources();
+}
+
+void LED::routeAdcSource2(bool adcSource2, uint8_t argIncrThresh, uint8_t argDecrThresh)
+{
+    if(!adcSource2)
+    {
+        _control &= ~(1<<ADC_SOURCE2);
+        // nothing more to do if adcSource2 is not being routed
+        return;
+    }
+
+    // reset counters and update valuesfor thresholds
+    adcSource2IncrCount = 0;
+    adcSource2DecrCount = 0;
+    adcSource2IncrCountThresh = argIncrThresh;
+    adcSource2DecrCountThresh = argDecrThresh;
 
     _control |= (1<<ADC_SOURCE2);
 

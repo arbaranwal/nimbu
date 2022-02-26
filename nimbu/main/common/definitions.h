@@ -17,15 +17,15 @@
 #define wrapIncrement(a, maxval)    ((a)==(maxval)?(0):(a+1))
 #endif
 
-#define MAX_ADC_SRC_NUM (2)
-#define MAX_FFT_SRC_NUM (8)
-#define MAX_LED_SRC_NUM (MAX_ADC_SRC_NUM + MAX_FFT_SRC_NUM)
-
-// #define DEBUG_FPS
-// #define DEBUG_PRINT
-// #define DEBUG_ADC
-// #define DEBUG_WAVE
-
 typedef char byte;
+
+// USER CONFIG
+
+// #define DEBUG__FPS
+// #define DEBUG__PRINT
+// #define DEBUG__ADC
+// #define DEBUG__BT
+
+#define LED_VU_RESOLUTION (2)
 
 #endif // __DEFINITIONS__

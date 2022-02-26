@@ -20,6 +20,7 @@ private:
     uint8_t _gpio_pin, _brightness[9] = {0,0,0,0,0,0,0,0,0}, _activeSources = 0, _minBrightness = 0, _maxBrightness = 255, _minPulseBrightness = 0, _maxPulseBrightness = 255, _colourDepth = 0, _stepValue = 1;
     uint8_t _randomStep = 1, _randomJitter = 0;
     uint8_t adcSource1IncrCount = 0, adcSource1IncrCountThresh = 1, adcSource1DecrCount = 0, adcSource1DecrCountThresh = 1;
+    uint8_t adcSource2IncrCount = 0, adcSource2IncrCountThresh = 1, adcSource2DecrCount = 0, adcSource2DecrCountThresh = 1;
     uint16_t _incrementStepTime = 0, _decrementStepTime = 0;
     uint16_t _onTime = 0, _offTime = 0;
     unsigned long _prevUpdate = 0;
@@ -53,6 +54,7 @@ public:
     void routeAdcSource1(bool bass);
     void routeAdcSource1(bool bass, uint8_t argIncrThresh, uint8_t argDecrThresh);
     void routeAdcSource2(bool mid);
+    void routeAdcSource2(bool mid, uint8_t argIncrThresh, uint8_t argDecrThresh);
     void routeAdcSource3(bool treble);
     void watchExtLight(bool extlight, uint8_t brightness);
     void watchExtLight(bool extlight);

@@ -18,11 +18,17 @@ To play the sound, there is a need of loudspeaker and possibly an external I2S c
 
 For the I2S codec, pick whatever chip or board works for you; this code was written using a PCM5102 chip, but other I2S boards and chips will probably work as well. The default I2S connections are shown below, but these can be changed in menuconfig:
 
-| ESP pin   | I2S signal   |
-| :-------- | :----------- |
-| GPIO22    | LRCK         |
-| GPIO25    | DATA         |
-| GPIO26    | BCK          |
+| ESP GPIO  | PERIPHERAL   | SIGNAL |
+| :-------- | :----------- | :----- |
+| GPIO22    | I2S          | LRCK   |
+| GPIO25    | I2S          | DATA   |
+| GPIO26    | I2S          | BCK    |
+| GPIO17    | LED          | BLUE   |
+| GPIO16    | LED          | GREEN  |
+| GPIO4     | LED          | RED    |
+| GPIO34    | ADC          | SRC1   |
+| GPIO35    | ADC          | SRC2   |
+
 
 If the internal DAC is selected, analog audio will be available on GPIO25 and GPIO26. The output resolution on these pins will always be limited to 8 bit because of the internal structure of the DACs.
 
