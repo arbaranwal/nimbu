@@ -1,6 +1,8 @@
 #ifndef __DEFINITIONS__
 #define __DEFINITIONS__
 
+#include <time.h>
+
 #ifndef max
 #define max(a, b) ((a)>(b)?(a):(b))
 #endif
@@ -18,6 +20,7 @@
 #endif
 
 typedef char byte;
+typedef tm tmElements_t;
 
 // USER CONFIG
 

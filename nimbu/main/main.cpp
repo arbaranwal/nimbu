@@ -32,6 +32,7 @@
 #include "variables.h"
 #include "fft_engine.h"
 #include "peripherals.h"
+#include <time.h>
 #define BLINK_GPIO 2
 
 // extern variables defined in variables.h
@@ -39,6 +40,11 @@ xTaskHandle s_led_task_handle = NULL;
 xTaskHandle s_fft_task_handle = NULL;
 xTaskHandle s_adc_task_handle = NULL;
 xQueueHandle eventQueue = xQueueCreate(80, 32);
+
+// extern variables for timekeeping
+time_t now;
+char strftime_buf[64];
+struct tm timeinfo;
 
 // needed for creating entry point to C
 extern "C" {
@@ -55,19 +61,10 @@ void app_init()
     }
     ESP_ERROR_CHECK(err);
 
-    /* Initialise LED Controller */
-    led_init();
-    for(uint8_t i = 0; i < 255; i++)
-    {
-        LED1.update(i);
-        LED2.update(i);
-        LED3.update(i);
-        delay(10);
-    }
-
     /* initialise peripherals */
     adc_init();
     i2s_init();
+    i2c_master_init();
 
     /* initialise Bluetooth */
     bt_init();
@@ -82,9 +79,29 @@ void app_main(void)
 
     app_init();
 
+    time(&now);
+    setenv("TX","IST-5:30",1);
+    tzset();
+    localtime_r(&now, &timeinfo);
+    strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
+    ESP_LOGI("START", "The current date/time in India is: %s", strftime_buf);
+
+    esp_err_t err = 0;
+    if(i2c_check_device(0x8) == ESP_OK)
+    {
+        ESP_LOGI("START","Found Arduino slave");
+    }
+    else
+    {
+        ESP_LOGE("START","Didn't find Arduino slave");
+    }
+    uint8_t write_buf[11] = "~HS4G#";
+    uint8_t read_buf[1];
+    while(i2c_master_write_to_device(I2C_MASTER_NUM, 0x8, write_buf, sizeof(write_buf), I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS) != ESP_OK);
+    while(i2c_master_read_from_device(I2C_MASTER_NUM, 0x8, read_buf, sizeof(1), I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS) == ESP_ERR_TIMEOUT);
+
     /* create application tasks */
     adc_task_start_up();
-    led_task_start_up();
     bt_app_task_start_up();
 
     /* Bluetooth device name, connection mode and profile set up */

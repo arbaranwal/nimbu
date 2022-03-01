@@ -89,3 +89,47 @@ void i2s_init()
     i2s_set_pin((i2s_port_t)0, &pin_config);
     #endif
 }
+
+void i2c_master_init(void)
+{
+    int i2c_master_port = I2C_MASTER_NUM;
+
+    i2c_config_t conf = {
+        .mode = I2C_MODE_MASTER,
+        .sda_io_num = I2C_MASTER_SDA_IO,
+        .scl_io_num = I2C_MASTER_SCL_IO,
+        .sda_pullup_en = GPIO_PULLUP_ENABLE,
+        .scl_pullup_en = GPIO_PULLUP_ENABLE,
+    };
+    conf.master.clk_speed = I2C_MASTER_FREQ_HZ;
+    i2c_param_config(i2c_master_port, &conf);
+    i2c_driver_install(i2c_master_port, conf.mode, I2C_MASTER_RX_BUF_DISABLE, I2C_MASTER_TX_BUF_DISABLE, 0);
+
+    ESP_LOGI(I2C_TAG, "Scanning for I2C peripherals...");
+    for (uint8_t i = 1; i < 127; i++)
+    {
+        int ret;
+        i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+        i2c_master_start(cmd);
+        i2c_master_write_byte(cmd, (i << 1) | I2C_MASTER_WRITE, 1);
+        i2c_master_stop(cmd);
+        ret = i2c_master_cmd_begin(I2C_NUM_0, cmd, 100 / portTICK_RATE_MS);
+        i2c_cmd_link_delete(cmd);
+        if (ret == ESP_OK)
+        {
+            ESP_LOGI(I2C_TAG, "Found device at: 0x%02x", i);
+        }
+    }
+}
+
+int i2c_check_device(uint8_t addr)
+{
+    int ret;
+    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+    i2c_master_start(cmd);
+    i2c_master_write_byte(cmd, (addr << 1) | I2C_MASTER_WRITE, 1);
+    i2c_master_stop(cmd);
+    ret = i2c_master_cmd_begin(I2C_NUM_0, cmd, 100 / portTICK_RATE_MS);
+    i2c_cmd_link_delete(cmd);
+    return ret;
+}

@@ -13,10 +13,6 @@
 
 extern xQueueHandle eventQueue;
 
-// led: defined in led.cpp
-extern int fps_counter;
-extern LED LED1, LED2, LED3;
-
 // led source-sink bridge:
 // defined in peripherals.cpp
 extern uint16_t adc_values[MAX_ADC_SRC_NUM];
@@ -34,5 +30,10 @@ extern uint8_t bltDataIndex;
 extern xTaskHandle s_led_task_handle;
 extern xTaskHandle s_fft_task_handle;
 extern xTaskHandle s_adc_task_handle;
+
+// timekeeping: defined in main.cpp
+extern time_t now;
+extern char strftime_buf[64];
+extern struct tm timeinfo;
 
 #endif // __VARIABLES__
