@@ -3,10 +3,16 @@
 #include "definitions.h"
 #include "adcHandler.h"
 #include <Wire.h>
+#include "appl.h"
 #define LEDC_SLAVE_ADDRESS 0x8
 //String red = "", green = "", blue = "";
 //SoftwareSerial blt(8,7);
-byte data_to_echo = 0;
+#define I2C_BUFFER_SIZE (32)
+#define I2C_CMD_SIZE    (4)
+byte i2cRxBuffer[I2C_BUFFER_SIZE] = {0};
+byte validCommand[I2C_CMD_SIZE] = {0};
+byte i2cTxResp = 0;
+uint8_t i2cRxBufferRdPtr, i2cRxBufferWrPtr = 0;
 
 #ifdef DEBUG_FPS
 uint64_t prevFPSMillis = 0;
@@ -105,17 +111,55 @@ void setup()
     updateFrame();
 }
 
-void receiveData(int byteCount)
+bool receiveData(int byteCount)
 {
+    if(i2cRxBufferWrPtr < i2cRxBufferRdPtr)
+    if(i2cRxBufferRdPtr == INCWRAP(i2cRxBufferWrPtr, I2C_BUFFER_SIZE))
+    {
+        i2cTxResp = RX_FIFO_FULL;
+        return false;
+    }
+    
     for (int i = 0; i < byteCount; i++)
     {
-        data_to_echo = Wire.read();
+        i2cRxBuffer[i2cRxBufferWrPtr] = Wire.read();
+        i2cRxBufferWrPtr = INCWRAP(i2cRxBufferWrPtr, I2C_BUFFER_SIZE);
     }
+}
+
+bool isCommandAvailable()
+{
+    return (i2cRxBufferRdPtr != i2cRxBufferWrPtr);
+}
+
+bool parseCommand()
+{
+    // check if something is available
+    if(!isCommandAvailable())
+    {
+        return false;
+    }
+    // get first byte and check if it's the correct starting opcode
+    byte rxByte = i2cRxBuffer[i2cRxBufferRdPtr++];
+    if(rxByte != '~')
+    {
+        return false;
+    }
+    // extract relevant bytes
+    uint8_t rxByteCount = 0;
+    while(rxByte != '#' && rxByteCount < (I2C_CMD_SIZE+1))
+    {
+        rxByte = i2cRxBuffer[i2cRxBufferRdPtr++];
+        validCommand[rxByteCount] = rxByte;
+        rxByteCount++;
+    }
+    validCommand[--rxByteCount] = '\0';
+    Serial.println((const char *)validCommand);
 }
 
 void sendData()
 {
-    Wire.write(data_to_echo);
+    Wire.write("OK");
 }
 
 int redBright = 0, decrCount = 0, incrCount = 0;
@@ -151,6 +195,7 @@ void loop()
     #else
         pollADC();
     #endif
+    parseCommand();
 }
 //
 //    int i;
