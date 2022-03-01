@@ -5,6 +5,7 @@
 #ifndef __BT_MAIN__
 #define __BT_MAIN__
 
+#include "esp_bt.h"
 #include "bt_app_core.h"
 #include "bt_app_av.h"
 #include "esp_bt_main.h"
@@ -22,5 +23,7 @@ enum {
 void bt_av_hdl_stack_evt(uint16_t event, void *p_param);
 
 void bt_app_gap_cb(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *param);
+
+void bt_init();
 
 #endif // __BT_MAIN__

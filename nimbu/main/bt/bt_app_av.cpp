@@ -70,7 +70,7 @@ void bt_app_a2d_data_cb(const uint8_t *data, uint32_t len)
 {
     write_ringbuf(data, len);
     if (++s_pkt_cnt % 100 == 0) {
-        ESP_LOGI(BT_AV_TAG, "Audio packet count %u", s_pkt_cnt);
+        ESP_LOGD(BT_AV_TAG, "Audio packet count %u", s_pkt_cnt);
     }
 }
 
@@ -225,11 +225,11 @@ void bt_av_notify_evt_handler(uint8_t event_id, esp_avrc_rn_param_t *event_param
         bt_av_new_track();
         break;
     case ESP_AVRC_RN_PLAY_STATUS_CHANGE:
-        ESP_LOGI(BT_AV_TAG, "Playback status changed: 0x%x", event_parameter->playback);
+        ESP_LOGD(BT_AV_TAG, "Playback status changed: 0x%x", event_parameter->playback);
         bt_av_playback_changed();
         break;
     case ESP_AVRC_RN_PLAY_POS_CHANGED:
-        ESP_LOGI(BT_AV_TAG, "Play position changed: %d-ms", event_parameter->play_pos);
+        ESP_LOGD(BT_AV_TAG, "Play position changed: %d-ms", event_parameter->play_pos);
         bt_av_play_pos_changed();
         break;
     }
@@ -264,7 +264,7 @@ static void bt_av_hdl_avrc_ct_evt(uint16_t event, void *p_param)
         break;
     }
     case ESP_AVRC_CT_CHANGE_NOTIFY_EVT: {
-        ESP_LOGI(BT_RC_CT_TAG, "AVRC event notification: %d", rc->change_ntf.event_id);
+        ESP_LOGD(BT_RC_CT_TAG, "AVRC event notification: %d", rc->change_ntf.event_id);
         bt_av_notify_evt_handler(rc->change_ntf.event_id, &rc->change_ntf.event_parameter);
         break;
     }
@@ -289,7 +289,7 @@ static void bt_av_hdl_avrc_ct_evt(uint16_t event, void *p_param)
 
 static void volume_set_by_controller(uint8_t volume)
 {
-    ESP_LOGI(BT_RC_TG_TAG, "Volume is set by remote controller %d%%\n", (uint32_t)volume * 100 / 0x7f);
+    ESP_LOGI(BT_RC_TG_TAG, "Volume (Remote) : Raw %d | %d%%\n", volume, (uint32_t)volume * 100 / 0x7f);
     _lock_acquire(&s_volume_lock);
     s_volume = volume;
     _lock_release(&s_volume_lock);
@@ -331,13 +331,6 @@ static void bt_av_hdl_avrc_tg_evt(uint16_t event, void *p_param)
         uint8_t *bda = rc->conn_stat.remote_bda;
         ESP_LOGI(BT_RC_TG_TAG, "AVRC conn_state evt: state %d, [%02x:%02x:%02x:%02x:%02x:%02x]",
                  rc->conn_stat.connected, bda[0], bda[1], bda[2], bda[3], bda[4], bda[5]);
-        if (rc->conn_stat.connected) {
-            // create task to simulate volume change
-            xTaskCreate(volume_change_simulation, "vcsT", 2048, NULL, 5, &s_vcs_task_hdl);
-        } else {
-            vTaskDelete(s_vcs_task_hdl);
-            ESP_LOGI(BT_RC_TG_TAG, "Stop volume change simulation");
-        }
         break;
     }
     case ESP_AVRC_TG_PASSTHROUGH_CMD_EVT: {
