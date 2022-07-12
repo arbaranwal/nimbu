@@ -4,14 +4,16 @@
 #include "adcHandler.h"
 #include <Wire.h>
 #include "appl.h"
-#define LEDC_SLAVE_ADDRESS 0x8
+#define PRU_SLAVE_ADDRESS 0x8
+#define PRU_SELF_ID 0x1
 //String red = "", green = "", blue = "";
 //SoftwareSerial blt(8,7);
-#define I2C_BUFFER_SIZE (32)
-#define I2C_CMD_SIZE    (4)
+#define I2C_CMD_SIZE    (8)
+#define I2C_BUFFER_SIZE (I2C_CMD_SIZE*2)
 byte i2cRxBuffer[I2C_BUFFER_SIZE] = {0};
 byte validCommand[I2C_CMD_SIZE] = {0};
 byte i2cTxResp = 0;
+uint8_t respPending = 0;
 uint8_t i2cRxBufferRdPtr, i2cRxBufferWrPtr = 0;
 
 #ifdef DEBUG_FPS
@@ -42,6 +44,7 @@ void setup()
 {
     // blt.begin(9600);
     Serial.begin(115200);
+    Serial.println("Init");
 
     setupADC();
     initADC();
@@ -49,7 +52,7 @@ void setup()
     // wait for ADC to stabilise before calibrating
     delay(500);
     calibrateBass();
-    Wire.begin(LEDC_SLAVE_ADDRESS);
+    Wire.begin(PRU_SLAVE_ADDRESS);
     Wire.onReceive(receiveData);
     Wire.onRequest(sendData);
 
@@ -65,9 +68,9 @@ void setup()
     // Red.watchExtLight(true,127);
     // Red.routeRandom(true);
     // Red.setRandomStep(24,2);
-    Red.routeBass(true, 2, 4);
+    // Red.routeBass(true, 2, 4);
     // Red.routeMid(true);
-    // Red.routeTreble(true);
+    Red.routeTreble(true);
     // Red.routeUser(true);
     // Red.setUserBrightness(1);
     // Serial.println(Red.getActiveChannels());
@@ -82,8 +85,8 @@ void setup()
     // Green.setColourDepth(4);
     // Green.watchExtLight(true,200);
     // Green.routeBass(true);
-    Green.routeMid(true);
-    // Green.routeTreble(true);
+    // Green.routeMid(true);
+    Green.routeTreble(true);
     // Green.routeUser(true);
     // Green.setUserBrightness(255);
     // Serial.println(Green.getActiveChannels());
@@ -107,19 +110,41 @@ void setup()
 
     heartbeat.flash(true);
 
+    #ifdef DEBUG_FPS
+    prevFPSMillis = millis();
+    #endif
+    #ifdef ADC_INTERRUPT_MODE
+    doFrameUpdate = 1;
+    #endif
+
     // update once to reset to zero (in case of invert(true)))
     updateFrame();
 }
 
+/**
+ * @brief Callback function for Wire.onReceive()
+ * Increments the writePointer to a ring-buffer maintained in global memory.
+ * The readPointer gets incremented when the data is read and a valid
+ * I2C_CMD_SIZE-byte command is read at once.
+ * 
+ * @param byteCount 
+ * @return true 
+ * @return false 
+ */
 bool receiveData(int byteCount)
 {
-    if(i2cRxBufferWrPtr < i2cRxBufferRdPtr)
+    /// capture I2C_CMD_SIZE bytes at once, helps keep ring-buffer logic simple
+    if(byteCount != I2C_CMD_SIZE)
+        return false;
+
+    /// set i2cTxResp as RX_FIFO_FULL if wr-ptr is just behind rd-ptr
     if(i2cRxBufferRdPtr == INCWRAP(i2cRxBufferWrPtr, I2C_BUFFER_SIZE))
     {
         i2cTxResp = RX_FIFO_FULL;
         return false;
     }
     
+    /// write all I2C_CMD_SIZE bytes into ring-buffer
     for (int i = 0; i < byteCount; i++)
     {
         i2cRxBuffer[i2cRxBufferWrPtr] = Wire.read();
@@ -127,45 +152,93 @@ bool receiveData(int byteCount)
     }
 }
 
+/**
+ * @brief function to check if there is a valid command based on read and write pointers.
+ * Due to the receiveData function ingesting only I2C_CMD_SIZE bytes at once. The rd/wr pointers will
+ * simply ping-pong around values in granularity of I2C_CMD_SIZE units.
+ * 
+ * @see receiveData
+ * @return true 
+ * @return false 
+ */
 bool isCommandAvailable()
 {
     return (i2cRxBufferRdPtr != i2cRxBufferWrPtr);
 }
 
+/**
+ * @brief parse the command
+ * 
+ * @return true 
+ * @return false 
+ */
 bool parseCommand()
 {
-    // check if something is available
+    /// check if something is available
     if(!isCommandAvailable())
     {
         return false;
     }
-    // get first byte and check if it's the correct starting opcode
-    byte rxByte = i2cRxBuffer[i2cRxBufferRdPtr++];
-    if(rxByte != '~')
+
+    /// get first byte and check if it's the correct starting opcode
+    byte rxByte = i2cRxBuffer[i2cRxBufferRdPtr];
+    if((rxByte & 0xF0) != (PRU_SELF_ID << 4))
     {
+        /// increment rdPtr by the I2C_CMD_SIZE
+        i2cRxBufferRdPtr = INCSWRAP(i2cRxBufferRdPtr, I2C_BUFFER_SIZE, I2C_CMD_SIZE);
         return false;
     }
-    // extract relevant bytes
+
+    respPending++;
+    /// extract relevant bytes
     uint8_t rxByteCount = 0;
-    while(rxByte != '#' && rxByteCount < (I2C_CMD_SIZE+1))
+    validCommand[rxByteCount++] = rxByte;   // store starting opcode in the 0th byte
+    i2cRxBufferRdPtr = INCWRAP(i2cRxBufferRdPtr, I2C_BUFFER_SIZE);  // increment read-pointer in RxBuffer
+
+    /// keep fetching I2C_CMD_SIZE bytes
+    while(rxByteCount < (I2C_CMD_SIZE))
     {
-        rxByte = i2cRxBuffer[i2cRxBufferRdPtr++];
+        rxByte = i2cRxBuffer[i2cRxBufferRdPtr];
         validCommand[rxByteCount] = rxByte;
+        i2cRxBufferRdPtr = INCWRAP(i2cRxBufferRdPtr, I2C_BUFFER_SIZE);
         rxByteCount++;
     }
-    validCommand[--rxByteCount] = '\0';
-    Serial.println((const char *)validCommand);
+    validCommand[--rxByteCount] = 0xFF;
+    #ifdef DEBUG_COMMAND
+    Serial.print(validCommand[0],HEX); Serial.print("-");
+    Serial.print(validCommand[1],HEX); Serial.print("-");
+    Serial.print(validCommand[2],HEX); Serial.print("-");
+    Serial.print(validCommand[3],HEX); Serial.print("-");
+    Serial.print(validCommand[4],HEX); Serial.print("-");
+    Serial.print(validCommand[5],HEX); Serial.print("-");
+    Serial.print(validCommand[6],HEX); Serial.print("-");
+    Serial.println(validCommand[7],HEX);
+    #endif // DEBUG_COMMAND
 }
 
-void sendData()
+/**
+ * @brief send the currently held response
+ * 
+ * @return none
+ */
+void sendData(int byteCount)
 {
-    Wire.write("OK");
+    // Serial.println(byteCount);
+    if(respPending)
+    {
+        Wire.write(i2cTxResp);
+        respPending--;
+    }
 }
 
 int redBright = 0, decrCount = 0, incrCount = 0;
 uint64_t prevRedMillis = 0;
-// updates the entire frame (each colour pixel once)
-inline void updateFrame()
+
+/**
+ * @brief updates the entire frame (each colour pixel once)
+ * 
+ */
+void updateFrame()
 {
     Red.update();
     Green.update();
@@ -184,18 +257,54 @@ inline void updateFrame()
     #endif
 }
 
+uint64_t previ2cRXBufMillis = 0;
+
+/**
+ * @brief main loop for ATMega devices
+ * 
+ */
 void loop()
 {
-    // uint8_t flashTime = constrain(GETBASS<<2,50,255);
-    // Serial.println(flashTime);
-    // Serial.print("\t");
-    // Blue.setTime(flashTime);
+    /// update frame
     #ifndef DEBUG_WAVE
-        updateFrame();
+        if(doFrameUpdate)
+        {
+            updateFrame();
+            #ifdef ADC_INTERRUPT_MODE
+            doFrameUpdate = 0;
+            // fire next reading from ADC
+            ADCSRA |= (1 << ADSC);
+            #endif
+        }
+
     #else
         pollADC();
     #endif
+    /// parse I2C command if available
     parseCommand();
+
+    if(millis() - previ2cRXBufMillis > 5000)
+    {
+        Serial.print(i2cRxBuffer[0],HEX); Serial.print("-");
+        Serial.print(i2cRxBuffer[1],HEX); Serial.print("-");
+        Serial.print(i2cRxBuffer[2],HEX); Serial.print("-");
+        Serial.print(i2cRxBuffer[3],HEX); Serial.print("-");
+        Serial.print(i2cRxBuffer[4],HEX); Serial.print("-");
+        Serial.print(i2cRxBuffer[5],HEX); Serial.print("-");
+        Serial.print(i2cRxBuffer[6],HEX); Serial.print("-");
+        Serial.print(i2cRxBuffer[7],HEX); Serial.print("-");
+        Serial.print(i2cRxBuffer[8],HEX); Serial.print("-");
+        Serial.print(i2cRxBuffer[9],HEX); Serial.print("-");
+        Serial.print(i2cRxBuffer[10],HEX); Serial.print("-");
+        Serial.print(i2cRxBuffer[11],HEX); Serial.print("-");
+        Serial.print(i2cRxBuffer[12],HEX); Serial.print("-");
+        Serial.print(i2cRxBuffer[13],HEX); Serial.print("-");
+        Serial.print(i2cRxBuffer[14],HEX); Serial.print("-");
+        Serial.print(i2cRxBuffer[15],HEX); Serial.print(" ");
+        Serial.print(i2cRxBufferRdPtr,HEX); Serial.print(" ");
+        Serial.println(i2cRxBufferWrPtr,HEX);
+        previ2cRXBufMillis = millis();
+    }
 }
 //
 //    int i;
