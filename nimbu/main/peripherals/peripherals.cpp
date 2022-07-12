@@ -125,6 +125,7 @@ void i2c_master_init(void)
 int i2c_check_device(uint8_t addr)
 {
     int ret;
+    ESP_LOGI(I2C_TAG, "Probing address: 0x%02x", addr);
     i2c_cmd_handle_t cmd = i2c_cmd_link_create();
     i2c_master_start(cmd);
     i2c_master_write_byte(cmd, (addr << 1) | I2C_MASTER_WRITE, 1);
@@ -133,3 +134,24 @@ int i2c_check_device(uint8_t addr)
     i2c_cmd_link_delete(cmd);
     return ret;
 }
+
+int probePRUs(uint8_t addr)
+{
+    uint8_t count = 0;
+    uint8_t writeBuff[PRU_PACKET_SIZE] = {0};
+    uint8_t readBuff[8] = {0};
+    for(int i=0; i<1; i++)
+    {
+        readBuff[0] = 0xFF;
+        writeBuff[0] = (i << 4);
+        writeBuff[1] = 0x00;
+        writeBuff[2] = '0';
+        writeBuff[3] = '0';
+        while(i2c_master_write_to_device(I2C_MASTER_NUM, PRU_I2C_ADDR, writeBuff, PRU_PACKET_SIZE, I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS) != ESP_OK);
+        while(i2c_master_read_from_device(I2C_MASTER_NUM, PRU_I2C_ADDR, readBuff, 2, I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS) == ESP_ERR_TIMEOUT);
+        if(*readBuff == 0)
+            count++;
+    }
+    return count;
+}
+    

@@ -7,8 +7,8 @@ DS3231RTC::DS3231RTC(uint8_t address)
     address++;
 }
 
-// Initialize the I2C bus.
-int DS3231RTC::begin()
+// Probe the peripheral
+int DS3231RTC::init()
 {
     return i2c_check_device(DS32_ADDR);
 }

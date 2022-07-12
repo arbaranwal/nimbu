@@ -3,21 +3,22 @@
 
 #include <cmath>
 #include <stdlib.h>
-#include "driver/ledc.h"
 #include "definitions.h"
+#include "peripherals.h"
 #include "apis.h"
 #include "led_definitions.h"
 
-void led_init();
+#define PRU_I2C_ADDR    (0x8)
+#define PRU_PACKET_SIZE (0x8)
+
+void pru_init();
 void led_task_start_up();
 void led_update(void *arg);
 
 class LED
 {
 private:
-    ledc_timer_config_t _ledc_timer;
-    ledc_channel_config_t _ledc_channel;
-    uint8_t _gpio_pin, _brightness[9] = {0,0,0,0,0,0,0,0,0}, _activeSources = 0, _minBrightness = 0, _maxBrightness = 255, _minPulseBrightness = 0, _maxPulseBrightness = 255, _colourDepth = 0, _stepValue = 1;
+    uint8_t _pruId, _brightness[9] = {0,0,0,0,0,0,0,0,0}, _activeSources = 0, _minBrightness = 0, _maxBrightness = 255, _minPulseBrightness = 0, _maxPulseBrightness = 255, _colourDepth = 0, _stepValue = 1;
     uint8_t _randomStep = 1, _randomJitter = 0;
     uint8_t adcSource1IncrCount = 0, adcSource1IncrCountThresh = 1, adcSource1DecrCount = 0, adcSource1DecrCountThresh = 1;
     uint8_t adcSource2IncrCount = 0, adcSource2IncrCountThresh = 1, adcSource2DecrCount = 0, adcSource2DecrCountThresh = 1;
@@ -29,9 +30,12 @@ private:
     uint8_t GET_SOURCE(uint8_t src);
 
 public:
-    LED(uint8_t gpio_pin, ledc_timer_t ledc_timer_num, ledc_channel_t ledc_channel_num);
+    LED();
+    int init(uint8_t pruId);
     void update(uint8_t brightness);
     void update();
+    void pruGet(uint8_t channel, uint8_t opcode, uint8_t *readBuff);
+    void pruSet(uint8_t channel, uint8_t opcode, uint8_t *readBuff);
     void setUserBrightness(uint8_t brightness);
     void setBrightness(uint8_t brightness);
     void setColourDepth(uint8_t colourDepth);

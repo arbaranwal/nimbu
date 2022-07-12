@@ -82,5 +82,6 @@ void i2s_init();
 #define I2C_MASTER_TIMEOUT_MS       1000
 void i2c_master_init();
 int i2c_check_device(uint8_t addr);
+int probePRUs(uint8_t addr);
 
 #endif // __PERIPHERALS__

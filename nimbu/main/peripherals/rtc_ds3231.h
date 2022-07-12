@@ -134,6 +134,7 @@ class DS3231RTC
             DS32_DYDT        {6};        // Day/Date flag bit in alarm Day/Date registers
 
         DS3231RTC(uint8_t address);
+        int init();
         int begin();
         static time_t get();    // static needed to work with setSyncProvider() in the Time library
         uint8_t set(time_t t);

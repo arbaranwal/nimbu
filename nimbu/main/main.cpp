@@ -51,9 +51,14 @@ extern "C" {
 	void app_main(void);
 }
 
-void app_init()
+/**
+ * @brief  Wrapper for all kinds of HW init
+ * 
+ * @return none
+ */
+void hw_init()
 {
-    /* Initialize NVS — it is used to store PHY calibration data */
+    /// Initialize NVS - used to store PHY calibration data
     esp_err_t err = nvs_flash_init();
     if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
         ESP_ERROR_CHECK(nvs_flash_erase());
@@ -61,12 +66,12 @@ void app_init()
     }
     ESP_ERROR_CHECK(err);
 
-    /* initialise peripherals */
+    /// initialise peripherals
     adc_init();
     i2s_init();
     i2c_master_init();
-
-    /* initialise Bluetooth */
+    pru_init();
+    /// initialise Bluetooth - mostly copied over from A2DP BLT example
     bt_init();
 }
 
@@ -77,47 +82,45 @@ void app_main(void)
     ESP_LOGI("MAIN", "esp_get_free_internal_heap_size: %f KiB", (float)esp_get_free_internal_heap_size()/1024);
     ESP_LOGI("MAIN", "esp_get_minimum_free_heap_size: %f KiB", (float)esp_get_minimum_free_heap_size()/1024);
 
-    app_init();
+    /// Init HW
+    hw_init();
 
+    /// Set time and date
     time(&now);
     setenv("TX","IST-5:30",1);
     tzset();
     localtime_r(&now, &timeinfo);
     strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
-    ESP_LOGI("START", "The current date/time in India is: %s", strftime_buf);
+    ESP_LOGI("MAIN", "The current date/time in India is: %s", strftime_buf);
 
+    /// I forgot why I added this!
     esp_err_t err = 0;
-    if(i2c_check_device(0x8) == ESP_OK)
+    uint8_t readBuff[8] = {0};
+    readBuff[7] = '\0';
+    for(int i = 0; i < 7; i++)
     {
-        ESP_LOGI("START","Found Arduino slave");
+        PRU[i].pruSet(i,i<<4,readBuff);
+        if(*readBuff != 0)
+        {
+            ESP_LOGI(".","%x", *readBuff);
+        }
     }
-    else
-    {
-        ESP_LOGE("START","Didn't find Arduino slave");
-    }
-    uint8_t write_buf[11] = "~HS4G#";
-    uint8_t read_buf[1];
-    while(i2c_master_write_to_device(I2C_MASTER_NUM, 0x8, write_buf, sizeof(write_buf), I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS) != ESP_OK);
-    while(i2c_master_read_from_device(I2C_MASTER_NUM, 0x8, read_buf, sizeof(1), I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS) == ESP_ERR_TIMEOUT);
 
-    /* create application tasks */
+    /// Create application tasks
     adc_task_start_up();
     bt_app_task_start_up();
 
-    /* Bluetooth device name, connection mode and profile set up */
+    /// Bluetooth device name, connection mode and profile set up
     bt_app_work_dispatch(bt_av_hdl_stack_evt, BT_APP_EVT_STACK_UP, NULL, 0, NULL);
 
     #if (CONFIG_BT_SSP_ENABLED == true)
-    /* Set default parameters for Secure Simple Pairing */
+    /// Set default parameters for Secure Simple Pairing
     esp_bt_sp_param_t param_type = ESP_BT_SP_IOCAP_MODE;
     esp_bt_io_cap_t iocap = ESP_BT_IO_CAP_IO;
     esp_bt_gap_set_security_param(param_type, &iocap, sizeof(uint8_t));
     #endif
 
-    /*
-     * Set default parameters for Legacy Pairing
-     * Use fixed pin code
-     */
+    /// Set default parameters for Legacy Pairing. Use fixed pin code
     esp_bt_pin_type_t pin_type = ESP_BT_PIN_TYPE_FIXED;
     esp_bt_pin_code_t pin_code;
     pin_code[0] = '4';
