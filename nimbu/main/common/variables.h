@@ -36,4 +36,7 @@ extern time_t now;
 extern char strftime_buf[64];
 extern struct tm timeinfo;
 
+// PRU vars
+extern LED PRU[8];
+
 #endif // __VARIABLES__

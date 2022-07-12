@@ -29,6 +29,7 @@
 #define B_LEDC_FREQUENCY        (LEDC_FREQUENCY)
 
 #define FPS 250
+#define LED_TAG "LEDC"
 
 // #define ADAPTIVE_REFERENCE
 // #define FLASH_GATE

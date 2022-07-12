@@ -14,10 +14,14 @@ volatile uint8_t channelValue[4] = {0};
     static uint8_t channelTrim[4] = {0, 0, 0, 0};
 #endif
 volatile uint8_t channelIndex = 0;
-volatile uint32_t check = 0;
+volatile uint8_t doFrameUpdate = 0;
 
 ISR(ADC_vect)
 {
+    if(doFrameUpdate != 0)
+    {
+        return;
+    }
     // switch based on the channelIndex
     switch (channelIndex)
     {
@@ -35,9 +39,15 @@ ISR(ADC_vect)
     ADMUX &= ~(0x0F);               // clear previous channel index (last 4 bits)
     ADMUX |= (channelIndex & 0x07); // select next channel
 
-    // fire the next reading
-    ADCSRA |= (1 << ADSC);
-    check++;
+    // Stop taking reading when all ADCs have been polled once.
+    if(channelIndex != 0)
+    {
+        ADCSRA |= (1 << ADSC);
+    }
+    else
+    {
+        doFrameUpdate = 1;
+    }
 }
 #endif
 
