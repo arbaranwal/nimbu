@@ -61,25 +61,17 @@ void adc_task_start_up()
 void i2s_init()
 {
     i2s_config_t i2s_config = {};
-    #ifdef CONFIG_EXAMPLE_A2DP_SINK_OUTPUT_INTERNAL_DAC
-    i2s_config.mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_TX | I2S_MODE_DAC_BUILT_IN);
-    #else
     i2s_config.mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_TX);  // Only TX
-    #endif
-    i2s_config.sample_rate = 44100;
-    i2s_config.bits_per_sample = (i2s_bits_per_sample_t)16;
-    i2s_config.channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT;         //2-channels
+    i2s_config.sample_rate = I2S_SAMPLE_RATE;
+    i2s_config.bits_per_sample = (i2s_bits_per_sample_t)I2S_BITS_PER_SAMPLE;
+    i2s_config.channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT;         // 2-channels
     i2s_config.communication_format = I2S_COMM_FORMAT_STAND_MSB;
-    i2s_config.dma_desc_num = 64;
-    i2s_config.dma_frame_num = 64;
-    i2s_config.intr_alloc_flags = 0;        //Default interrupt priority
-    i2s_config.tx_desc_auto_clear = true;   //Auto clear tx descriptor on underflow
+    i2s_config.dma_desc_num = I2S_DMA_DESC_NUM;
+    i2s_config.dma_frame_num = I2S_DMA_FRAME_NUM;
+    i2s_config.intr_alloc_flags = 0;        // Default interrupt priority
+    i2s_config.tx_desc_auto_clear = true;   // Auto clear tx descriptor on underflow - prevents noise when no input is sent
 
     i2s_driver_install((i2s_port_t)0, &i2s_config, 0, NULL);
-    #ifdef CONFIG_EXAMPLE_A2DP_SINK_OUTPUT_INTERNAL_DAC
-    i2s_set_dac_mode(I2S_DAC_CHANNEL_BOTH_EN);
-    i2s_set_pin(0, NULL);
-    #else
     i2s_pin_config_t pin_config = {
         .bck_io_num = CONFIG_EXAMPLE_I2S_BCK_PIN,
         .ws_io_num = CONFIG_EXAMPLE_I2S_LRCK_PIN,
@@ -87,7 +79,7 @@ void i2s_init()
         .data_in_num = -1   //Not used
     };
     i2s_set_pin((i2s_port_t)0, &pin_config);
-    #endif
+    ESP_LOGI(I2S_TAG, "Poll Delay: %d ms", ADC_POLL_DELAY_MS);
 }
 
 void i2c_master_init(void)
