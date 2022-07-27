@@ -23,7 +23,7 @@ extern uint8_t fft_values[MAX_FFT_SRC_NUM];
 
 // fft-blt bridge: defined in either bt_app_core.cpp or fft_engine.cpp
 extern bool freezeBLTData, readyForFFT;
-extern uint8_t bltData[64];
+extern int *validFFTData;
 extern uint8_t bltDataIndex;
 
 // tasks: defined in main.cpp
@@ -35,6 +35,8 @@ extern xTaskHandle s_adc_task_handle;
 extern time_t now;
 extern char strftime_buf[64];
 extern struct tm timeinfo;
+
+extern float f_peaks[5];
 
 // PRU vars
 extern LED PRU[8];

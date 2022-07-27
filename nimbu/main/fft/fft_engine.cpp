@@ -1,27 +1,33 @@
 #include "fft_engine.h"
+void FFT(int in[],int N,float Frequency);
 
 int nfft = 64;
-bool readyForFFT = false;
+bool readyForFFT = true;
+int *validFFTData;
 uint8_t fftValues[MAX_FFT_SRC_NUM] = {0};
 
-void create_fft()
+void fft_task_start_up()
+{
+    ESP_LOGI(FFT_TAG, "Starting FFT engine");
+    xTaskCreate((TaskFunction_t)do_fft, "do_fft", 4096, NULL, tskIDLE_PRIORITY, &s_fft_task_handle);
+}
+
+void do_fft()
 {
     for(;;)
     {
-        if(readyForFFT)
+        if(freezeBLTData)   // only run if BLTData is frozen
         {
-            // alloc FFT and configure
-            printf("esp_get_free_heap_size: %f KiB\n", (float)esp_get_free_heap_size()/1024);
-            // do FFT
-            printf("DATA\n");
-            for(uint8_t i = 0; i < nfft; i++)
-            {
-                // printf("%lf %lf", cout[i].r, cout[i].i);
-                printf("\n");
-            }
-            printf("DATA END\n");
-            freezeBLTData = false;
-            // free data used by FFT
+            // deassert readyForFFT
+            readyForFFT = false;
+            // process data
+            FFT(validFFTData,64,22050);
+            // printf("S\n");
+            // for (int i = 0; i < 5; i++)
+            //     printf("%f\n", f_peaks[i]);
+            // printf("E\n");
+            // assert ready
+            readyForFFT = true;
         }
     }
 }
