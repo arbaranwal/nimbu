@@ -108,6 +108,7 @@ void app_main(void)
 
     /// Create application tasks
     adc_task_start_up();
+    fft_task_start_up();
     bt_app_task_start_up();
 
     /// Bluetooth device name, connection mode and profile set up

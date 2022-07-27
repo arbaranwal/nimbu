@@ -33,7 +33,6 @@ static xTaskHandle s_bt_i2s_task_handle = NULL;
 static RingbufHandle_t s_ringbuf_i2s = NULL;;
 
 bool freezeBLTData = false;
-uint8_t bltData[64];
 uint8_t bltDataIndex = 0;
 
 bool bt_app_work_dispatch(bt_app_cb_t p_cback, uint16_t event, void *p_params, int param_len, bt_app_copy_cb_t p_copy_cback)
@@ -108,7 +107,7 @@ static void bt_app_task_handler(void *arg)
 void bt_app_task_start_up(void)
 {
     s_bt_app_task_queue = xQueueCreate(10, sizeof(bt_app_msg_t));
-    xTaskCreate(bt_app_task_handler, "BtAppT", 3072, NULL, configMAX_PRIORITIES - 3, &s_bt_app_task_handle);
+    xTaskCreate(bt_app_task_handler, "BtAppT", 4096, NULL, configMAX_PRIORITIES - 3, &s_bt_app_task_handle);
     return;
 }
 
@@ -126,33 +125,57 @@ void bt_app_task_shut_down(void)
 
 static void bt_i2s_task_handler(void *arg)
 {
-    uint8_t *data = NULL;
+    uint8_t *dmaI2SData = NULL;
+    // int16_t *oneChannelData = NULL;
     size_t item_size = 0;
     size_t bytes_written = 0;
 
     for (;;) {
-        data = (uint8_t *)xRingbufferReceive(s_ringbuf_i2s, &item_size, (portTickType)portMAX_DELAY);
+        dmaI2SData = (uint8_t *)xRingbufferReceive(s_ringbuf_i2s, &item_size, (portTickType)portMAX_DELAY);
         if (item_size != 0)
         {
-            i2s_write(I2S_NUM_0, data, item_size, &bytes_written, portMAX_DELAY);
-            int16_t total = 0;
-            for(uint32_t i = 0; i < (item_size>>LED_VU_RESOLUTION); i++)
-            {
-                int16_t x = max(0,((int16_t*)(data))[i<<LED_VU_RESOLUTION]);
-                total = (uint8_t)((total+x)/(i+1));
-            }
-            led_sources[SRC_2] = total;
-            // if(!freezeBLTData)
+            i2s_write(I2S_NUM_0, dmaI2SData, item_size, &bytes_written, portMAX_DELAY);
+            // int16_t total = 0;
+            // for(uint32_t i = 0; i < (item_size>>LED_VU_RESOLUTION); i++)
             // {
-            //     bltData[bltDataIndex++] = (int16_t)((*data)-127);
-            //     if(bltDataIndex == 64)
-            //     {
-            //         readyForFFT = true;
-            //         freezeBLTData = true;
-            //         bltDataIndex = 0;
-            //     }
+            //     int16_t x = max(0,((int16_t*)(data))[i<<LED_VU_RESOLUTION]);
+            //     total = (uint8_t)((total+x)/(i+1));
             // }
-            vRingbufferReturnItem(s_ringbuf_i2s,(void *)data);
+            // led_sources[SRC_2] = total;
+            // oneChannelData = (int16_t *)dmaI2SData;
+            // printf(";%d:", item_size);
+            
+            // if BLT data is not frozen already, assign validFFTData immediately
+            if(!freezeBLTData)
+            {
+                validFFTData = (int *)dmaI2SData;
+            }
+            if(readyForFFT)
+            {
+                // increment counter by 2 to compensate for both channels, and then increment by 2 more steps to capture every 2nd reading
+                // for(int i = 0; i < item_size; i+=4)
+                // {
+                //     // if(data[i] != 0)
+                //     printf("%d\n",*(oneChannelData+i));
+                // }
+                // bltData[bltDataIndex++] = (uint16_t)(*oneChannelData);
+
+                // force unfreeze BLT Data to idle FFT engine
+                freezeBLTData = false;
+                // first release the validFFTData from the ring buffer
+                vRingbufferReturnItem(s_ringbuf_i2s,(void *)validFFTData);
+                // link new dmaI2SData pointer to the validFFTData pointer
+                validFFTData = (int *)dmaI2SData;
+                // free BLT Data to start FFT engine
+                freezeBLTData = true;
+            }
+            else
+            {
+                // deallocate this buffer
+                vRingbufferReturnItem(s_ringbuf_i2s,(void *)dmaI2SData); 
+            }
+            // kept from original BLT-->I2S code. Preserved for later if seeing ringbuffer issues
+            // vRingbufferReturnItem(s_ringbuf_i2s,(void *)data);
         }
     }
 }

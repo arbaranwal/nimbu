@@ -13,6 +13,10 @@
 #include "esp_adc_cal.h"
 #include "definitions.h"
 
+//////////////////
+/// ADC CONFIG ///
+//////////////////
+
 /*
  * Configure ADC input channels
  * Some of the ADC2 pins are used as strapping pins (GPIO 0, 2, 15).
@@ -63,23 +67,36 @@
 #define ADC_SRC1    ADC1_CHANNEL_6
 #define ADC_SRC2    ADC1_CHANNEL_7
 
-// ADC
 bool adc_init(void);
 void adc_task_start_up();
 void adc_update(void *arg);
 
-// I2S
+
+//////////////////
+/// I2S CONFIG ///
+//////////////////
+
+#define I2S_TAG "I2S"
+#define I2S_SAMPLE_RATE             (44100)
+#define I2S_BITS_PER_SAMPLE         (16)
+#define I2S_DMA_DESC_NUM            (64)
+#define I2S_DMA_FRAME_NUM           (64)
+
 void i2s_init();
 
-// I2C
+
+//////////////////
+/// I2C CONFIG ///
+//////////////////
+
 #define I2C_TAG "I2C"
-#define I2C_MASTER_SCL_IO           22      /*!< GPIO number used for I2C master clock */
-#define I2C_MASTER_SDA_IO           21      /*!< GPIO number used for I2C master data  */
-#define I2C_MASTER_NUM              0       /*!< I2C master i2c port number, the number of i2c peripheral interfaces available will depend on the chip */
-#define I2C_MASTER_FREQ_HZ          400000  /*!< I2C master clock frequency */
-#define I2C_MASTER_TX_BUF_DISABLE   0       /*!< I2C master doesn't need buffer */
-#define I2C_MASTER_RX_BUF_DISABLE   0       /*!< I2C master doesn't need buffer */
-#define I2C_MASTER_TIMEOUT_MS       1000
+#define I2C_MASTER_SCL_IO           (22)      /*!< GPIO number used for I2C master clock */
+#define I2C_MASTER_SDA_IO           (21)      /*!< GPIO number used for I2C master data  */
+#define I2C_MASTER_NUM              (0)       /*!< I2C master i2c port number, the number of i2c peripheral interfaces available will depend on the chip */
+#define I2C_MASTER_FREQ_HZ          (400000)  /*!< I2C master clock frequency */
+#define I2C_MASTER_TX_BUF_DISABLE   (0)       /*!< I2C master doesn't need buffer */
+#define I2C_MASTER_RX_BUF_DISABLE   (0)       /*!< I2C master doesn't need buffer */
+#define I2C_MASTER_TIMEOUT_MS       (1000)
 void i2c_master_init();
 int i2c_check_device(uint8_t addr);
 int probePRUs(uint8_t addr);
